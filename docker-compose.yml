@@ -1,0 +1,75 @@
+version: '3.7'
+
+networks:
+  external:
+    driver: bridge
+
+volumes:
+  mirth-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: $DATA
+      o: bind
+  mirth-lib:
+    driver: local
+    driver_opts:
+      type: none
+      device: $LIB
+      o: bind
+  mirth-logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: $LOGS
+      o: bind
+  postgres:
+    driver: local
+    driver_opts:
+      type: none
+      device: $DATABASE
+      o: bind
+
+services:
+  mirth:
+    build: $PWD
+    image: nextgenhealthcare/connect:3.10.1-jdk
+    platform: linux/x86_64
+    container_name: mirth
+    restart: on-failure
+    environment:
+      - DATABASE=postgres
+      - DATABASE_URL=jdbc:postgresql://database:5432/mirth_db
+      - DATABASE_MAX_CONNECTIONS=2
+      - DATABASE_USERNAME=pnb
+      - DATABASE_PASSWORD=pnb
+      - VMOPTIONS=-Xmx1024m
+      - DATABASE_RETRY_WAIT=1000
+    volumes:
+      - mirth-data:/opt/connect/appdata
+      - mirth-lib:/opt/connect/custom-lib
+      - mirth-logs:/opt/connect/logs
+    ports:
+      - 8080:8080/tcp
+      - 8443:8443/tcp
+      - 6661:6661/tcp
+    networks:
+      - external
+    depends_on:
+      - database
+
+  database:
+    image: postgres:12.3-alpine
+    platform: linux/x86_64
+    container_name: postgres
+    restart: on-failure
+    environment:
+      POSTGRES_USER: pnb
+      POSTGRES_PASSWORD: pnb
+      POSTGRES_DB: mirth_db
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - external
+    ports: 
+      - 5432:5432/tcp
